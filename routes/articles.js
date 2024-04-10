@@ -182,10 +182,11 @@ router.get('/tengri/get-actual-detail', async (req, res) => {
 });
 router.post('/', upload.single('image'), async (req, res) => {
     const {title, content, summary, category} = req.body;
-    const imageUrl = host + (req.file ? req.file.path : '');
+    const mediaUrl = host + (req.file ? req.file.path : '');
+
 
     try {
-        const newArticle = new Article({title, content, summary, category, mediaUri: imageUrl});
+        const newArticle = new Article({title, content, summary, category, mediaUrl});
         await newArticle.save();
         res.status(201).json(newArticle);
     } catch (err) {
