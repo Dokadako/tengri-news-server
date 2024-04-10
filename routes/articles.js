@@ -185,7 +185,7 @@ router.post('/', upload.single('image'), async (req, res) => {
     const imageUrl = host + (req.file ? req.file.path : '');
 
     try {
-        const newArticle = new Article({title, content, summary, category, imageUrl});
+        const newArticle = new Article({title, content, summary, category, mediaUri: imageUrl});
         await newArticle.save();
         res.status(201).json(newArticle);
     } catch (err) {
