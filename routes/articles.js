@@ -5,7 +5,7 @@ const axios = require('axios');
 const cheerio = require('cheerio');
 const multer = require('multer');
 
-const host = "http://localhost:5000/";
+const host = "https://tengri-news-server-fb457f2a9e75.herokuapp.com/";
 
 // Настройка multer
 const storage = multer.diskStorage({
