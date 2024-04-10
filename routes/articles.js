@@ -7,10 +7,9 @@ const multer = require('multer');
 
 const host = "https://tengri-news-server-fb457f2a9e75.herokuapp.com/";
 
-// Настройка multer
 const storage = multer.diskStorage({
     destination: function (req, file, cb) {
-        cb(null, 'uploads/') // Убедитесь, что этот каталог существует
+        cb(null, 'uploads/')
     },
     filename: function (req, file, cb) {
         cb(null, Date.now() + '-' + file.originalname)
@@ -20,7 +19,6 @@ const storage = multer.diskStorage({
 const upload = multer({storage: storage});
 
 
-// Get all articles with pagination
 router.get('/', async (req, res) => {
     console.log("запрос");
     const {page = 1, limit = 10} = req.query;
@@ -40,7 +38,6 @@ router.get('/', async (req, res) => {
     }
 });
 
-// Get all articles with optional search and filter
 router.get('/with-params', async (req, res) => {
     const {search, category} = req.query;
     let query = {};
@@ -61,12 +58,10 @@ router.get('/with-params', async (req, res) => {
 });
 
 
-// Get one article
 router.get('/:id', getArticle, (req, res) => {
     res.json(res.article);
 });
 
-// Middleware to get an article by ID
 async function getArticle(req, res, next) {
     let article;
     try {
@@ -83,11 +78,10 @@ async function getArticle(req, res, next) {
 }
 
 
-// Функция для веб-скрапинга
 const fetchNewsWithPagination = async (page) => {
     try {
         const baseUrl = 'https://tengrinews.kz/news';
-        const pageUrl = page === 1 ? baseUrl : `${baseUrl}/page/${page}/`; // Обновленный URL страницы с пагинацией
+        const pageUrl = page === 1 ? baseUrl : `${baseUrl}/page/${page}/`;
         try {
             const {data} = await axios.get(pageUrl);
             const $ = cheerio.load(data);
@@ -98,8 +92,8 @@ const fetchNewsWithPagination = async (page) => {
                     title: $(elem).find('.content_main_item_title a').text().trim(),
                     link: `${$(elem).find('.content_main_item_title a').attr('href').trim()}`,
                     summary: $(elem).find('.content_main_item_announce').text().trim(),
-                    imageUrl: "https://tengrinews.kz" + $(elem).find('.content_main_item_img').attr('src'), // Добавляем URL изображения
-                    date: $(elem).find('.content_main_item_meta span').first().text().trim(), // Добавляем дату публикации
+                    imageUrl: "https://tengrinews.kz" + $(elem).find('.content_main_item_img').attr('src'),
+                    date: $(elem).find('.content_main_item_meta span').first().text().trim(),
                 };
                 articles.push(article);
             });
@@ -128,8 +122,6 @@ router.get('/tengri/get-actual', async (req, res) => {
     const {articles, totalPages} = await fetchNewsWithPagination(page);
     res.json({articles, totalPages});
 });
-
-// Функция для скрапинга детальной страницы статьи
 const fetchArticleDetail = async (articlePath) => {
     try {
         const fullUrl = `https://tengrinews.kz${articlePath}`;
@@ -137,25 +129,37 @@ const fetchArticleDetail = async (articlePath) => {
         const $ = cheerio.load(data);
         let content = '';
         let title = "";
-        let img = "";
+        let mediaUrl = ""; // Переменная для хранения URL изображения или видео
 
-        // Теперь выбираем только <p> внутри <div class="content_main_text">
         $('.content_main_text p').each((i, elem) => {
             content += $(elem).text() + '\n\n';
         });
 
         $('.head-single').each((i, elem) => {
             title += $(elem).text();
-        })
+        });
 
-        $('.content_main_thumb_img img').each((i, elem) => {
-            img += $(elem).attr("src");
-        })
+        // Проверяем наличие изображения
+        const img = $('.content_main_thumb_img img').attr("src");
+        if (img) {
+            mediaUrl = "https://tengrinews.kz" + img;
+        }
+
+        // Проверяем наличие видео, если изображение отсутствует
+        if (!mediaUrl) {
+            const videoSource = $('.content_main_thumb video source').attr("src");
+            if (videoSource) {
+                mediaUrl = "https://tengrinews.kz" + videoSource;
+            }
+        }
+
+        console.log(fullUrl);
+        console.log(mediaUrl);
 
         return {
             title,
             content,
-            imageUrl: "https://tengrinews.kz" + img,
+            mediaUrl, // Возвращаем URL медиа (изображение или видео)
         };
     } catch (error) {
         console.error('Ошибка при парсинге детальной страницы статьи:', error);
@@ -164,7 +168,7 @@ const fetchArticleDetail = async (articlePath) => {
 };
 
 router.get('/tengri/get-actual-detail', async (req, res) => {
-    const articlePath = req.query.path; // Ожидаем, что путь к статье будет передан как query параметр
+    const articlePath = req.query.path;
     if (!articlePath) {
         return res.status(400).send('Path parameter is required');
     }
@@ -178,7 +182,7 @@ router.get('/tengri/get-actual-detail', async (req, res) => {
 });
 router.post('/', upload.single('image'), async (req, res) => {
     const {title, content, summary, category} = req.body;
-    const imageUrl = host + (req.file ? req.file.path : ''); // Получаем путь к файлу
+    const imageUrl = host + (req.file ? req.file.path : '');
 
     try {
         const newArticle = new Article({title, content, summary, category, imageUrl});
@@ -189,17 +193,16 @@ router.post('/', upload.single('image'), async (req, res) => {
     }
 });
 
-// DELETE запрос для удаления новости
 router.delete('/:id', async (req, res, next) => {
     try {
         const resD = await Article.deleteOne({_id: req.params.id});
 
-        if(!resD.deletedCount){
+        if (!resD.deletedCount) {
             return res.status(404).json({message: "Article not found"});
         }
         res.json({message: "Article deleted"});
     } catch (err) {
-        next(err); // Передаем ошибку в обработчик ошибок
+        next(err);
     }
 });
 
@@ -215,7 +218,6 @@ router.put('/:id', upload.single('image'), async (req, res) => {
         article.summary = req.body.summary || article.summary;
         article.category = req.body.category || article.category;
 
-        // Обработка загруженного файла
         if (req.file) {
             article.image_url = req.file.path;
         }
